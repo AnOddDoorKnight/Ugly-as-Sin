@@ -1,0 +1,36 @@
+class UaS_Medical_Bootstrap : EventHandler 
+{
+	//override void WorldThingSpawned(WorldEvent e) {
+	//	if(level.maptime > 1) { return; }
+	//	if(!e.Thing) { return; }
+	//	if(e.Thing is "Inventory" && Inventory(e.Thing).Owner) { return; }
+
+	//	bool spawnable = (
+	//		e.thing.GetClassName() == "HDAmBox" ||
+	//		e.Thing.GetClassName() == "PortableStimpack" ||
+	//		e.Thing.GetClassName() == "PortableMedikit" ||
+	//		e.Thing.GetClassName() == "HDBackpack");
+
+	//	if(spawnable) {
+	//		UaS.SpawnStuff('UaS_TraumaKit', randompick[glowstick](0, 0, 0, 0, 1), e.Thing.pos);
+	//	}
+	//}
+
+	// Theres probably a better way to rewrite this and may give better performance,
+	// - but this will do.
+	override void WorldTick() {
+		for (int i = 0; i < MAXPLAYERS; i++) {
+			if (!playeringame[i]) { continue; }
+			let player = players[i].mo;
+			let hDPlayer = HDPlayerPawn(player);
+			hDPlayer.A_GiveInventory("UaS_WoundStabilization");
+			//if (!currentPlayer.mo) { return; }
+			//if (!currentPlayer.mo.countinv("UaS_WoundStabilization")) {
+			//	currentPlayer.mo.giveinventory("UaS_WoundStabilization", 1);
+			//}
+			//if (!p.mo.countinv("UaS_WoundHandler")) {
+			//	p.mo.giveinventory("UaS_WoundHandler", 1);
+			//}
+		}
+	}
+}

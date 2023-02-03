@@ -4,7 +4,7 @@ AddOptionMenu "OptionsMenu" {
 	Submenu "Ugly as Sin Settings", "UaS_Options"
 }
 
-AddOptionMenu "HDAddonMenu" {
+AddOptionMenu "HDOptionsMenu" after "HDControlsMenu" {
 	Submenu "Ugly as Sin Settings", "UaS_Options"
 }
 
