@@ -7,9 +7,11 @@
 class UaS_WoundStabilization : HDWoundFixer 
 {
 	string lastUser;
-	
+	int stablizeBleeding;
+
+
 	// The amount of pressure the player forces on the wound to convert treated to sealed
-	int pressure;
+	float pressure;
 	// current delay between ticks when the pressure decreases by 1
 	int brace;
 	// maximum delay between ticks when the pressure decreases by 1, inclusive
@@ -49,10 +51,11 @@ class UaS_WoundStabilization : HDWoundFixer
 	{
 		pressure = 0;
 		brace = 0;
-		maxBrace = 1;
+		maxBrace = 0;
 		pressureCharge = 0;
 		chargeBrace = 0;
 		maxChargeBrace = 3;
+		stablizeBleeding = 0;
 		previousStatus = false;
 		lastUser = "null";
 	}
@@ -90,23 +93,26 @@ class UaS_WoundStabilization : HDWoundFixer
 		
 		// Status Message
 		string statusMessage = "--- \cdWound stabilization\c- ---\n";
+		
 		if (lastUser != "null")
-		{
 			statusmessage.AppendFormat("Treating \cg"..lastUser.."\n\n");
-		}
 		else
-		{
 			statusmessage.AppendFormat("\n\n");
-		}
 		statusMessage.AppendFormat("\cuApply pressure and\nhemostatic compound\nto bandaged wounds.\n\n\n");
+		
 		if (!canStabilizeBandages)
-		{
 			statusMessage.AppendFormat("No unstable bandaged wounds to treat.");
-		}
 		else
 		{
 			statusMessage.AppendFormat(ToPressureString());
+			if (stablizeBleeding > 0)
+			{
+				stablizeBleeding -= 1;
+				statusMessage.AppendFormat("\n\nStabilized some bleeding.");
+			}
 		}
+		
+		
 		A_WeaponMessage(statusMessage);
 	}
 
@@ -128,7 +134,7 @@ class UaS_WoundStabilization : HDWoundFixer
 		return null;
 	}
 
-	void ModifyPressure(int amount)
+	void ModifyPressure(float amount)
 	{
 		pressure += amount;
 		// Clamping vlaues
@@ -140,7 +146,7 @@ class UaS_WoundStabilization : HDWoundFixer
 	string ToPressureString()
 	{
 		string bars = "";
-		for (int i = 0; i < (pressure + 2) / 10; i++)
+		for (int i = 0; i < (pressure) / 10; i++)
 		{
 			bars.AppendFormat("=");
 		}
@@ -156,159 +162,6 @@ class UaS_WoundStabilization : HDWoundFixer
 			pressureCharge = 100;
 	}
 
-
-	/// <summary>
-	/// Shows the wound stabilization window for the user, and calls methods relating
-	/// to player actions.
-	/// </summary>
-	//override void DoEffect() {
-	//	if (!(owner.player.readyweapon is 'UaS_WoundStabilization')) { return; }
-	//	SetHelpText();
-//
-	//	statusMessage = "--- \cdWound stabilization\c- ---\n";
-	//	if (patient) 
-	//	{ 
-	//		statusMessage = statusmessage.."Treating \cg"..patient.player.getusername().."\n\n"; 
-	//		}
-	//	else 
-	//	{ 
-	//		statusMessage = statusmessage.."\n\n"; 
-	//	}
-//
-	//	statusMessage = statusmessage..
-	//		"\cuApply pressure and\nhemostatic compound\nto bandaged wounds.\n\n\n";
-//
-	//	BleedingControl();
-	//	TickMessages();
-	//	A_WeaponMessage(statusMessage);
-	//}
-
-	//void BleedingControl() {
-	//	SetPatient();
-	//	if (patient.unstablewoundcount <= 0) {
-	//		currentmessage.text = "";
-	//		statusMessage = statusmessage.."No unstable bandaged wounds to treat.";
-	//		hemostatic = 0;
-	//		pressure = 0;
-	//		return;
-	//	}
-//
-	//	// Hemostatic amount readout
-	//	if (hemostatic > 0) { statusMessage = statusmessage.."\ca"; }
-	//	for (int i = 0; i < hemostatic; i++) { statusmessage = statusmessage.."="; }
-	//	statusmessage = statusmessage.."Hemostatic";
-	//	for (int i = 0; i < hemostatic; i++) { statusmessage = statusmessage.."="; }
-	//	statusmessage = statusmessage.."\n";
-//
-	//	// Pressure amount readout
-	//	if (pressure > 50) { statusMessage = statusmessage.."\cw"; }
-	//	if (pressure > 100) { statusMessage = statusmessage.."\cm"; }
-	//	for (int i = 0; i < pressure/10; i++) { statusmessage = statusmessage.."="; }
-	//	statusmessage = statusmessage.."Pressure";
-	//	for (int i = 0; i < pressure/10; i++) { statusmessage = statusmessage.."="; }
-	//	statusmessage = statusmessage.."\n\n";
-
-		// Apply hemostatic compound
-		//if ((owner.player.cmd.buttons & BT_RELOAD)) {
-		//	pressure = 0;
-		//	if (hemostatic >= 5) {
-		//		currentmessage.text = "Applied hemostatic compound.\n"
-		//			.."\cr--WARNING--\n"
-		//			.."Clotting agents can cause\n"
-		//			.."burns and tissue damage!\n";
-		//		currentmessage.timeout = 35;
-		//		return;
-		//	}
-		//	else {
-		//		if (!(owner.player.oldbuttons & BT_RELOAD)) { owner.A_StartSound("bandage/rip", CHAN_WEAPON, CHANF_DEFAULT, 0.5); }
-		//		if (level.time % 20 == 0) {
-		//			owner.A_StartSound("misc/wallchunks",CHAN_WEAPON);
-		//			HDPlayerPawn(owner).A_MuzzleClimb(
-		//				(frandom[uas_bc](-1,1),frandom[uas_bc](0,1))/2,
-		//				(frandom[uas_bc](-1,1),frandom[uas_bc](0,1))/2,
-		//				(frandom[uas_bc](-1,1),frandom[uas_bc](0,1))/2,
-		//				(frandom[uas_bc](-1,1),frandom[uas_bc](0,1))/2
-		//			);
-		//			hemostatic++;
-		//			currentmessage.text = "Applying hemostatic compound to wound.\n"
-		//				.."\cr--WARNING--\n"
-		//				.."Clotting agents can cause\n"
-		//				.."burns and tissue damage!\n";
-		//			currentmessage.timeout = 35;
-		//		}
-		//		return;
-		//	}
-		//}
-
-		// Apply pressure
-	//	double shake;
-	//	if ((owner.player.cmd.buttons & BT_ATTACK)) {
-	//		pressure = min(pressure + 1, 99 + (hemostatic * 10));
-	//		shake = pressure / 20.0;
-	//		if (random[uas_bc](0,25) == 0) { patient.A_StartSound("misc/smallslop", CHAN_BODY); }
-	//		if (pressure == 100) {
-	//			patient.damagemobj(owner,owner,1,"staples");
-	//			patient.burncount += randompick[uas_bc](0, 0, 0, 1);
-	//		}
-	//		if (pressure == 109) {
-	//			pressure = 0;
-	//			patient.damagemobj(owner,owner,1,"staples");
-	//			patient.burncount += randompick[uas_bc](0, 1);
-	//		}
-	//	}
-	//	else {
-	//		pressure = max(pressure - 1, 0);
-	//		shake = -pressure / 20.0;
-	//	}
-//
-	//	// Shake and fluctuate view
-	//	HDPlayerPawn(owner).A_MuzzleClimb(
-	//		(frandom[uas_bc](-shake,shake),frandom[uas_bc](0,shake))/20,
-	//		(frandom[uas_bc](-shake,shake),frandom[uas_bc](0,shake))/30,
-	//		(frandom[uas_bc](-shake,shake),frandom[uas_bc](0,shake))/40,
-	//		(frandom[uas_bc](-shake,shake),frandom[uas_bc](0,shake))/50
-	//	);
-//
-	//	// check for stopped bleeding
-	//	bool canstabilize = (
-	//		(hemostatic <= 0) ||
-	//		(hemostatic > 0 && pressure <= 100)
-	//	);
-	//	if (level.time % 10 == 0 && canstabilize) {
-	//		int upperlimit = pressure + (hemostatic * 10);
-	//		int check = (
-	//			random[uas_bc](0, upperlimit) +
-	//			random[uas_bc](0, upperlimit)) / 2;
-//
-	//		if (check > 70) {
-	//			currentmessage.text = "Stabilized some bleeding.";
-	//			currentmessage.timeout = 35;
-	//			hemostatic = max(hemostatic - 1, 0);
-	//			pressure = 50;
-	//			patient.unstablewoundcount = max(patient.unstablewoundcount - 1, 0);
-	//			patient.oldwoundcount = max(patient.oldwoundcount + 1, 0);
-	//		}
-	//	}
-	//}
-
-	//struct StatusInfo {
-	//	string text;
-	//	int timeout;
-	//}
-	
-	void ShootWoundStabilizer()
-	{
-		
-	}
-
-	//void TickMessages() {
-	//	// Tick down transient messages
-	//	if (currentmessage.timeout > 0) {
-	//		statusmessage = statusmessage..currentmessage.text;
-	//		currentmessage.timeout--;
-	//	}
-	//}
-
 	/// <summary>
 	/// Finds the amount of wounds first hand, then determines if it should
 	/// handle those wounds based on individual stats; The 'temporarily bandaged'
@@ -316,12 +169,7 @@ class UaS_WoundStabilization : HDWoundFixer
 	/// </summary>
 	action bool CanStabilizeBandages()
 	{
-		//invoker.targetwound = HDBleedingWound.findbiggest(invoker);
-		bool output = invoker.targetwound;
-		if (output != invoker.previousStatus)
-			console.printf((invoker.targetwound ? "There is a wound to patch!" : "Nvm it gone"));
-		invoker.previousStatus = output;
-		return output;
+		return invoker.targetwound;
 	}
 	bool previousStatus;
 
@@ -358,20 +206,9 @@ class UaS_WoundStabilization : HDWoundFixer
 	states
 	{
 		select: // Targeting itself
-			//invoker.targetwound = null;
 			TNT1 A 0
 			{
 				invoker.lastUser = self.player.getusername();
-				//invoker.lastUser = self.wound;
-
-				//invoker.hdbleedingwound = hdbleedingwound;
-				//console.printf("Hello, World!");
-				//PlayerPawn pawn = PlayerPawn(invoker);
-				//string pawnName = pawn.player.GetUserName();
-				//invoker.lastUser = pawnName;
-				//console.printf(pawnName);
-				//invoker.lastUser = pawn.player.getusername();
-				//invoker.lastUser = "NAME";//invoker.getusername();
 			}
 			goto super::select;
 		ready:
@@ -400,10 +237,6 @@ class UaS_WoundStabilization : HDWoundFixer
 		fire:
 		hold:
 		//lower:
-			TNT1 A 0
-			{
-				console.printf("bruh");
-			}
 			TNT1 A 0 A_JumpIf(invoker.ShouldAbort() || !invoker.CanStabilizeBandages(), "nope");
 			//TNT1 A 0 A_JumpIf(!invoker.CanStabilizeBandages(), "noWounds");
 			//TNT1 A 0 A_JumpIf(pitch>45,"try");
@@ -413,12 +246,20 @@ class UaS_WoundStabilization : HDWoundFixer
 		try:
 			TNT1 A 1
 			{ 
-				invoker.ModifyPressure(2);
-				if (invoker.pressure >= random(25, 150))
+				invoker.ModifyPressure(3.4f);
+				if (invoker.pressure >= random(25, 175))
 				{
 					invoker.ModifyCharge(2);
-					console.printf(invoker.pressure.."");
 				}
+				if (random[uas_bc](0,25) == 0) 
+					self.A_StartSound("misc/smallslop", CHAN_BODY);
+				double shake = invoker.pressure / 20.0f;
+				HDPlayerPawn(self).A_MuzzleClimb(
+					(frandom[uas_bc](-shake,shake),frandom[uas_bc](0,shake))/20,
+					(frandom[uas_bc](-shake,shake),frandom[uas_bc](0,shake))/30,
+					(frandom[uas_bc](-shake,shake),frandom[uas_bc](0,shake))/40,
+					(frandom[uas_bc](-shake,shake),frandom[uas_bc](0,shake))/50
+				); 
 				// Stabilize bandages.
 				if (invoker.pressureCharge > 70)
 				{
@@ -431,6 +272,7 @@ class UaS_WoundStabilization : HDWoundFixer
 						randomHeal = currentWound.patched;
 					currentWound.patched -= randomHeal;
 					currentWound.sealed += randomHeal;
+					invoker.stablizeBleeding = 90;
 				}
 			}
 			goto ready;
