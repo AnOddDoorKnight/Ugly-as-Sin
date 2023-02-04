@@ -6,9 +6,7 @@
 /// </summary>
 class UaS_WoundStabilization : HDWoundFixer 
 {
-	string statusMessage;
-	//StatusInfo currentMessage;
-	//WoundInfo currentWound;
+	string lastUser;
 	
 	// The amount of pressure the player forces on the wound to convert treated to sealed
 	int pressure;
@@ -27,6 +25,7 @@ class UaS_WoundStabilization : HDWoundFixer
 	{
 		+hdweapon.dontdisarm
 		weapon.selectionorder 1003;
+		weapon.slotpriority 0.6;
 		weapon.slotnumber 9;
 		
 		// Probably could remove these, this is borrowed from selfbandage class 
@@ -54,29 +53,61 @@ class UaS_WoundStabilization : HDWoundFixer
 		pressureCharge = 0;
 		chargeBrace = 0;
 		maxChargeBrace = 3;
-		statusMessage = "bruh";
+		previousStatus = false;
+		lastUser = "null";
 	}
 
 	override void Tick()
 	{
+		//targetwound = hdbleedingwound.findbiggest(self, 1);
 		// Does ticking behaviour
-		// Brace
-		brace += 1;
-		if (brace > maxBrace)
+		bool canStabilizeBandages = CanStabilizeBandages();
+		if (canStabilizeBandages)
 		{
-			brace = 0;
-			ModifyPressure(-1);
+			// Brace
+			brace += 1;
+			if (brace > maxBrace)
+			{
+				brace = 0;
+				ModifyPressure(-1);
+			}
+			// Charge
+			chargeBrace += 1;
+			if (chargeBrace > maxChargeBrace)
+			{
+				chargeBrace = 0;
+				ModifyCharge(-1);
+			}
 		}
+		else
+		{
+			pressure = 0;
+			pressureCharge = 0;
+		}
+		
 		if (pressure > 0)
 			console.printf("Pressure: "..pressure.." ---- Charge: "..pressureCharge);
-		// Charge
-		chargeBrace += 1;
-		if (chargeBrace > maxChargeBrace)
+		
+		// Status Message
+		string statusMessage = "--- \cdWound stabilization\c- ---\n";
+		if (lastUser != "null")
 		{
-			chargeBrace = 0;
-			ModifyCharge(-1);
+			statusmessage.AppendFormat("Treating \cg"..lastUser.."\n\n");
 		}
-		A_WeaponMessage(ToPressureString());
+		else
+		{
+			statusmessage.AppendFormat("\n\n");
+		}
+		statusMessage.AppendFormat("\cuApply pressure and\nhemostatic compound\nto bandaged wounds.\n\n\n");
+		if (!canStabilizeBandages)
+		{
+			statusMessage.AppendFormat("No unstable bandaged wounds to treat.");
+		}
+		else
+		{
+			statusMessage.AppendFormat(ToPressureString());
+		}
+		A_WeaponMessage(statusMessage);
 	}
 
 
@@ -265,6 +296,10 @@ class UaS_WoundStabilization : HDWoundFixer
 	//	int timeout;
 	//}
 	
+	void ShootWoundStabilizer()
+	{
+		
+	}
 
 	//void TickMessages() {
 	//	// Tick down transient messages
@@ -279,12 +314,35 @@ class UaS_WoundStabilization : HDWoundFixer
 	/// handle those wounds based on individual stats; The 'temporarily bandaged'
 	/// stat.
 	/// </summary>
-	bool CanStabilizeBandages()
+	action bool CanStabilizeBandages()
 	{
-		return hdbleedingwound.woundcount(self) > 0;
+		//invoker.targetwound = HDBleedingWound.findbiggest(invoker);
+		bool output = invoker.targetwound;
+		if (output != invoker.previousStatus)
+			console.printf((invoker.targetwound ? "There is a wound to patch!" : "Nvm it gone"));
+		invoker.previousStatus = output;
+		return output;
 	}
+	bool previousStatus;
 
-	// Use Patched!
+	clearscope static HDBleedingWound FindBiggestPatched(actor bleeder)
+	{
+		double deepest = 0;
+		HDBleedingWound bldwres=null;
+		HDBleedingWound bldw=null;
+		thinkeriterator bldit = thinkeriterator.create("HDBleedingWound");
+		while(bldw = HDBleedingWound(bldit.next())){
+			if (!bldw) 
+				continue;
+			double deep = bldw.patched;
+			if(bldw.bleeder==bleeder && deepest < deep)
+			{
+				deepest=deep;
+				bldwres=bldw;
+			}
+		}
+		return bldwres;
+	}
 
 	/// <summary>
 	/// Determines if the healing process should abort. This is for environmental
@@ -301,22 +359,51 @@ class UaS_WoundStabilization : HDWoundFixer
 			//invoker.targetwound = null;
 			TNT1 A 0
 			{
-				console.printf("Hello, World!");
+				invoker.lastUser = self.player.getusername();
+				//invoker.lastUser = self.wound;
+
+				//invoker.hdbleedingwound = hdbleedingwound;
+				//console.printf("Hello, World!");
+				//PlayerPawn pawn = PlayerPawn(invoker);
+				//string pawnName = pawn.player.GetUserName();
+				//invoker.lastUser = pawnName;
+				//console.printf(pawnName);
+				//invoker.lastUser = pawn.player.getusername();
+				//invoker.lastUser = "NAME";//invoker.getusername();
 			}
 			goto super::select;
-		fire: 
-			TNT1 A 0
+		ready:
+			TNT1 A 1
 			{
-				console.printf("Fire, World!");
+				A_WeaponReady(WRF_NOFIRE|WRF_ALLOWUSER1|WRF_ALLOWUSER3);
+				invoker.targetwound = FindBiggestPatched(self);
+				int button = self.player.cmd.buttons;
+
+				// Blocks pathway to wait until player presses fire
+				if (!(button & (BT_ATTACK)))
+				{
+					return;
+				}
+				// Blocks path when the player wears something like the radsuit
+				let blockinv = HDWoundFixer.CheckCovered(self, CHECKCOV_ONLYFULL);
+				if (blockinv)
+				{
+					A_TakeOffFirst(blockinv.gettag());
+					setweaponstate("nope");
+					return;
+				}
+				setweaponstate("fire");
 			}
+			goto readyend;
+		fire:
 		hold:
 		//lower:
 			TNT1 A 0
 			{
-
-				console.printf("Bruh");
+				console.printf("bruh");
 			}
-			TNT1 A 0 A_JumpIf(invoker.ShouldAbort(), "nope");
+			TNT1 A 0 A_JumpIf(invoker.ShouldAbort() || !invoker.CanStabilizeBandages(), "nope");
+			//TNT1 A 0 A_JumpIf(!invoker.CanStabilizeBandages(), "noWounds");
 			//TNT1 A 0 A_JumpIf(pitch>45,"try");
 			//TNT1 A 1 A_MuzzleClimb(0,6);
 			//TNT1 A 0 A_Refire("hold");
@@ -324,16 +411,31 @@ class UaS_WoundStabilization : HDWoundFixer
 		try:
 			TNT1 A 1
 			{ 
-				invoker.ModifyPressure(3);
-				if (invoker.pressure >= random(25, 100))
+				invoker.ModifyPressure(2);
+				if (invoker.pressure >= random(25, 150))
 				{
 					invoker.ModifyCharge(2);
+					console.printf(invoker.pressure.."");
+				}
+				// Stabilize bandages.
+				if (invoker.pressureCharge > 70)
+				{
+					invoker.pressureCharge = 0;
+					invoker.pressure = 50;
+					float randomHeal = frandom(0.5, 1.5);
+					invoker.targetwound.patch(randomHeal, true);
 				}
 			}
 			goto ready;
 		spawn:
 			TNT1 A 1;
 			stop;
+		//noWounds:
+		//	TNT1 A 0 
+		//	{
+		//		invoker.noWoundErrorTimer = 60;
+		//	}
+		//	goto nope;
 		nope:
 			goto super::nope;
 	}
