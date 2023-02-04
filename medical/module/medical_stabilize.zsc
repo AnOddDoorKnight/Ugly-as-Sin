@@ -144,7 +144,7 @@ class UaS_WoundStabilization : HDWoundFixer
 		{
 			bars.AppendFormat("=");
 		}
-		return bars.."PRESSURE"..bars;
+		return (pressure > 45 ? "\cw" : "")..bars.."PRESSURE"..bars;
 	}
 	void ModifyCharge(int amount)
 	{
@@ -328,20 +328,22 @@ class UaS_WoundStabilization : HDWoundFixer
 	clearscope static HDBleedingWound FindBiggestPatched(actor bleeder)
 	{
 		double deepest = 0;
-		HDBleedingWound bldwres=null;
-		HDBleedingWound bldw=null;
+		HDBleedingWound woundDeepest = null;
+		HDBleedingWound currentWound = null;
 		thinkeriterator bldit = thinkeriterator.create("HDBleedingWound");
-		while(bldw = HDBleedingWound(bldit.next())){
-			if (!bldw) 
+		while(currentWound = HDBleedingWound(bldit.next())){
+			if (!currentWound) 
 				continue;
-			double deep = bldw.patched;
-			if(bldw.bleeder==bleeder && deepest < deep)
+			double deep = currentWound.patched;
+			if (deep < 0.005)
+				continue;
+			if(currentWound.bleeder==bleeder && deepest < deep)
 			{
 				deepest=deep;
-				bldwres=bldw;
+				woundDeepest=currentWound;
 			}
 		}
-		return bldwres;
+		return woundDeepest;
 	}
 
 	/// <summary>
@@ -423,7 +425,12 @@ class UaS_WoundStabilization : HDWoundFixer
 					invoker.pressureCharge = 0;
 					invoker.pressure = 50;
 					float randomHeal = frandom(0.5, 1.5);
-					invoker.targetwound.patch(randomHeal, true);
+					HDBleedingWound currentWound = invoker.targetwound;
+					// This does similar to the currentWound.patch(float, bool), cut off
+					if (randomHeal > currentWound.patched)
+						randomHeal = currentWound.patched;
+					currentWound.patched -= randomHeal;
+					currentWound.sealed += randomHeal;
 				}
 			}
 			goto ready;
